@@ -1,11 +1,5 @@
-# Ignore all data
-data/**
-
-# Keep only empty output folders
-!data/output/
-!data/output/**/
-data/output/**/*
-!data/output/**/.gitkeep
+# Ignore data folder completely
+data/
 
 # Ignore tests completely
 test/
