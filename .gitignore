@@ -1,0 +1,18 @@
+# Ignore all data
+data/**
+
+# Keep only empty output folders
+!data/output/
+!data/output/**/
+data/output/**/*
+!data/output/**/.gitkeep
+
+# Ignore tests completely
+test/
+
+# Ignore python cache
+src/__pycache__/
+**/__pycache__/
+
+# Ignore logs
+*.log
