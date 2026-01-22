@@ -3,13 +3,13 @@ import re
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 
-from src.path import OUTPUT_JSON_DIR, DATA_DIR
+from src.path import OUTPUT_JSON_DIR, OUTPUT_DIR
 
 # =========================================================
 # Output directory
 # =========================================================
 
-SCOPE_DIR = DATA_DIR / "scope"
+SCOPE_DIR = OUTPUT_DIR / "scope"
 SCOPE_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================================================
