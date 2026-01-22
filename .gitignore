@@ -10,3 +10,7 @@ src/__pycache__/
 
 # Ignore logs
 *.log
+
+# Github files
+.gitattributes
+.gitignore
