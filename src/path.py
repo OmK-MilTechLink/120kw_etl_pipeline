@@ -11,6 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
 INPUT_PDFS_DIR = DATA_DIR / "input_pdfs"
 COMPLETE_DIR = DATA_DIR / "completed"
+VECTOR_DB_DIR = DATA_DIR / "vector_db"
 OUTPUT_DIR = DATA_DIR / "output"
 MARKER_JSON_DIR = OUTPUT_DIR / "marker_json"
 OUTPUT_JSON_DIR = OUTPUT_DIR / "output_json"

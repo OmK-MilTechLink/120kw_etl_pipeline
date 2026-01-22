@@ -18,9 +18,13 @@ marker_pdf/                                  # Root directory for Marker-based d
 │       │
 │       ├── output_json_chunk/               # Contains chunks created clause wise from json schema
 │       │
+│       ├── output_short_chunk/              # Contains chunks under a character limit created for RAG implementation
+│       │
 │       └── output_images/                   # Contains all images that are referenced in the json schema
 │
 ├── src/                                     # All executable scripts for the Marker → RAG pipeline
+│   │
+│   ├── chunk_limit_char.py                  # Limits characters present in a chunks under a limit for RAG
 │   │
 │   ├── collect_json.py                      # Copies per-PDF Marker JSON into output_json
 │   │
