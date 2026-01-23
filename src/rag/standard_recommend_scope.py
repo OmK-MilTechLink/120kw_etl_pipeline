@@ -10,7 +10,7 @@ from chromadb.config import Settings
 from src.path import VECTOR_DB_DIR
 
 # =========================================================
-# CONFIG (UNCHANGED)
+# CONFIG
 # =========================================================
 
 VECTOR_DB_SCOPE = VECTOR_DB_DIR / "vector_db_scope"
@@ -21,7 +21,7 @@ TOP_K = 5
 OVERFETCH_K = 20
 
 # =========================================================
-# UTILITIES (UNCHANGED)
+# UTILITIES (TEXT-AGNOSTIC)
 # =========================================================
 
 def tokenize(text: str):
@@ -38,7 +38,7 @@ def z_score(value, mean, std):
     return (value - mean) / std
 
 # =========================================================
-# CORE RETRIEVAL (UNCHANGED)
+# CORE RETRIEVAL
 # =========================================================
 
 def retrieve_relevant_documents(query: str, top_k: int = TOP_K):
@@ -64,7 +64,8 @@ def retrieve_relevant_documents(query: str, top_k: int = TOP_K):
         include=["documents", "metadatas", "distances"]
     )
 
-    similarities = [1.0 - d for d in results["distances"][0]]
+    # Normalize cosine distance → similarity
+    similarities = [1.0 - (d / 2.0) for d in results["distances"][0]]
 
     mean_sim = statistics.mean(similarities)
     std_sim = statistics.pstdev(similarities)
@@ -82,8 +83,8 @@ def retrieve_relevant_documents(query: str, top_k: int = TOP_K):
 
         ranked.append({
             "document_id": results["metadatas"][0][i]["document_id"],
-            "similarity": similarity,
-            "score": final_score
+            "similarity": round(similarity, 4),
+            "score": round(final_score, 4)
         })
 
     ranked.sort(key=lambda x: x["score"], reverse=True)
@@ -97,16 +98,16 @@ def retrieve_relevant_documents(query: str, top_k: int = TOP_K):
     return filtered[:top_k]
 
 # =========================================================
-# FASTAPI APP (MINIMAL)
+# FASTAPI APP
 # =========================================================
 
 app = FastAPI(
-    title="Scope Retrieval API",
-    version="1.0"
+    title="Standards Recommendation API",
+    version="2.0"
 )
 
 # =========================================================
-# REQUEST / RESPONSE MODELS
+# REQUEST / RESPONSE
 # =========================================================
 
 class ScopeQuery(BaseModel):
@@ -119,11 +120,11 @@ class ScopeResult(BaseModel):
     score: float
 
 # =========================================================
-# SINGLE ENDPOINT
+# ENDPOINT
 # =========================================================
 
-@app.post("/retrieve", response_model=List[ScopeResult])
-def retrieve_scope(req: ScopeQuery):
+@app.post("/recommend", response_model=List[ScopeResult])
+def recommend_standards(req: ScopeQuery):
     return retrieve_relevant_documents(
         query=req.query,
         top_k=req.top_k

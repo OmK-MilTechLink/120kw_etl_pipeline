@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Dict, Set, Tuple, Optional
 from fastapi import FastAPI, HTTPException
 
-from path import OUTPUT_JSON_DIR, OUTPUT_DIR
+from src.path import OUTPUT_JSON_DIR, OUTPUT_DIR
 
 # =========================================================
 # Configuration
