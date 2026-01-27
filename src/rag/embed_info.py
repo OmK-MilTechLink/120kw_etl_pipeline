@@ -27,7 +27,7 @@ def embed_all_scopes() -> int:
     model = SentenceTransformer(MODEL_NAME)
 
     client = chromadb.PersistentClient(
-        path=str(VECTOR_DB_INFOfo),
+        path=str(VECTOR_DB_INFO),
         settings=Settings(anonymized_telemetry=False)
     )
 

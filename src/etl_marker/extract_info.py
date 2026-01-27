@@ -13,8 +13,8 @@ from src.path import OUTPUT_JSON_DIR, OUTPUT_DIR
 SCOPE_DIR = OUTPUT_DIR / "scope"
 SCOPE_DIR.mkdir(parents=True, exist_ok=True)
 
-MIN_SUMMARY_WORDS = 60
-MAX_SUMMARY_WORDS = 80
+MIN_SUMMARY_WORDS = 40
+MAX_SUMMARY_WORDS = 100
 
 # =========================================================
 # Regex Patterns
@@ -53,33 +53,145 @@ def starts_with_section_number(text: str) -> bool:
 # =========================================================
 
 def build_scope_summary(scope_lines: List[str]) -> str:
-    """
-    Build a 40–60 word extractive summary from scope text.
-    Uses ONLY original scope text. No paraphrasing.
-    """
+    
     if not scope_lines:
         return ""
 
     full_text = " ".join(s.strip() for s in scope_lines if s.strip())
     words = full_text.split()
 
+    # Preserve existing behavior for short scopes
     if len(words) <= MAX_SUMMARY_WORDS:
         return full_text.strip()
 
-    return " ".join(words[:MAX_SUMMARY_WORDS]).strip()
+    # --- NEW LOGIC (extractive, sentence-aware) ---
+    sentences = re.split(r'(?<=[.;])\s+', full_text)
+
+    SCOPE_KEYWORDS = (
+        "applies", "applicable", "covers", "includes", "including",
+        "excludes", "excluding", "requirements", "specifies",
+        "scope", "intended", "defines", "limits", "shall"
+    )
+
+    scored = []
+    for idx, sent in enumerate(sentences):
+        score = sum(1 for kw in SCOPE_KEYWORDS if kw in sent.lower())
+        scored.append((idx, sent, score))
+
+    # Prefer scope-defining sentences, but keep determinism
+    scored.sort(key=lambda x: (-x[2], x[0]))
+
+    selected = []
+    total_words = 0
+
+    for _, sent, _ in scored:
+        sent_words = sent.split()
+        if total_words + len(sent_words) > MAX_SUMMARY_WORDS:
+            continue
+
+        selected.append(sent)
+        total_words += len(sent_words)
+
+        if total_words >= MIN_SUMMARY_WORDS:
+            break
+
+    # Fallback to original truncation logic if needed
+    if not selected:
+        return " ".join(words[:MAX_SUMMARY_WORDS]).strip()
+
+    # Restore original document order
+    selected.sort(key=lambda s: full_text.index(s))
+
+    return " ".join(selected).strip()
 
 # =========================================================
-# Title Extraction (UNCHANGED)
+# Title Extraction
 # =========================================================
+
+def is_boilerplate_title(text: str) -> bool:
+    """
+    Detect non-title administrative or legal text.
+    Conservative list based on actual standards PDFs.
+    """
+    t = text.lower()
+
+    boilerplate_terms = [
+        "copyright",
+        "all rights reserved",
+        "international standard",
+        "european standard",
+        "british standard",
+        "indian standard",
+        "publication",
+        "published by",
+        "edition",
+        "foreword",
+        "introduction",
+        "committee",
+        "prepared by",
+        "issued by",
+        "supersedes",
+        "replaced by",
+        "ics ",
+        "published",
+        "customer",
+        "services"
+    ]
+
+    return any(term in t for term in boilerplate_terms)
+
+def contains_english_stopwords(text: str) -> bool:
+    """
+    Ensure text contains common English stopwords.
+    Prevents French/German/Spanish ASCII text from passing.
+    """
+    english_stopwords = {
+        "the", "and", "for", "of", "to", "in", "with",
+        "requirements", "specification", "standard",
+        "systems", "cabling", "installation", "testing"
+    }
+
+    words = {w.lower() for w in re.findall(r"[a-zA-Z]+", text)}
+    return bool(words & english_stopwords)
 
 def extract_document_title(blocks: List[Dict]) -> Optional[str]:
-    for block in blocks:
-        if block.get("block_type") != "SectionHeader":
-            continue
+    candidates = []
+
+    for idx, block in enumerate(blocks):
         text = clean_html(block.get("html", ""))
-        if text and is_english(text) and not starts_with_section_number(text):
-            return text
-    return None
+        if not text:
+            continue
+
+        # ---- HARD REJECTIONS ----
+        if not is_english(text):
+            continue
+        if not contains_english_stopwords(text): 
+            continue
+        if starts_with_section_number(text):
+            continue
+        if is_boilerplate_title(text):
+            continue
+        if len(text.split()) < 4:
+            continue
+        if len(text.split()) > 25:
+            continue
+
+        # ---- SCORING (UNCHANGED) ----
+        score = 0
+        if block.get("block_type") == "SectionHeader":
+            score += 3
+        if idx < 40:
+            score += 2
+        if idx < 15:
+            score += 1
+
+        candidates.append((score, idx, text))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: (-x[0], x[1]))
+    return candidates[0][2]
 
 # =========================================================
 # Scope Extraction (UNCHANGED)
