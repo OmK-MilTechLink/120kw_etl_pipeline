@@ -21,7 +21,7 @@ TOP_K = 5
 OVERFETCH_K = 20
 
 # =========================================================
-# UTILITIES (UNCHANGED)
+# UTILITIES
 # =========================================================
 
 def tokenize(text: str):
@@ -38,10 +38,56 @@ def z_score(value, mean, std):
     return (value - mean) / std
 
 # =========================================================
-# CORE RETRIEVAL LOGIC (UNCHANGED)
+# INPUT JSON → EMBEDDING TEXT
+# (SCOPE + TESTS + REGION, NO HARD-CODED LOGIC)
 # =========================================================
 
-def retrieve_relevant_documents(query: str, top_k: int = TOP_K):
+def input_json_to_embedding_text(input_json: dict) -> str:
+    """
+    Convert user input JSON into scope- and test-aligned
+    plain text suitable for direct embedding.
+    """
+
+    parts = []
+
+    product = input_json.get("product_details", {})
+    req = input_json.get("testing_requirements", {})
+    std = input_json.get("testing_standards", {})
+
+    # ---- Scope / applicability intent ----
+    if product.get("eut_name"):
+        parts.append(product["eut_name"])
+
+    if product.get("industry"):
+        parts.append(product["industry"])
+
+    if product.get("industry_other"):
+        parts.append(product["industry_other"])
+
+    if product.get("signal_lines"):
+        parts.append(product["signal_lines"])
+
+    # ---- Region (applicability context) ----
+    if std.get("regions"):
+        parts.extend(std["regions"])
+
+    # ---- Tests (EXPLICIT – matches scope JSON test sections) ----
+    if req.get("test_type"):
+        parts.append(req["test_type"])
+
+    if req.get("selected_tests"):
+        parts.extend(req["selected_tests"])
+
+    return "\n".join(parts).strip()
+
+# =========================================================
+# CORE RETRIEVAL LOGIC
+# =========================================================
+
+def retrieve_relevant_documents(embedding_text: str, top_k: int = TOP_K):
+    if not embedding_text:
+        return []
+
     model = SentenceTransformer(MODEL_NAME)
 
     client = chromadb.PersistentClient(
@@ -52,11 +98,11 @@ def retrieve_relevant_documents(query: str, top_k: int = TOP_K):
     collection = client.get_collection(COLLECTION_NAME)
 
     query_embedding = model.encode(
-        query,
+        embedding_text,
         normalize_embeddings=True
     ).tolist()
-
-    query_tokens = tokenize(query)
+    
+    query_tokens = tokenize(embedding_text)
 
     results = collection.query(
         query_embeddings=[query_embedding],
@@ -80,6 +126,7 @@ def retrieve_relevant_documents(query: str, top_k: int = TOP_K):
 
         ranked.append({
             "document_id": results["metadatas"][0][i]["document_id"],
+            "document_text": doc_text,
             "similarity": round(similarity, 4),
             "score": round(score, 4)
         })
@@ -91,20 +138,27 @@ def retrieve_relevant_documents(query: str, top_k: int = TOP_K):
 # FASTAPI
 # =========================================================
 
-app = FastAPI(title="Standards Recommendation API", version="1.0")
+app = FastAPI(
+    title="Standards Recommendation API",
+    version="1.0"
+)
 
 class RecommendationRequest(BaseModel):
-    query: str
+    input_json: dict
     top_k: int = TOP_K
 
 class RecommendationResult(BaseModel):
     document_id: str
+    document_text: str
     similarity: float
     score: float
 
 @app.post("/recommend", response_model=List[RecommendationResult])
 def recommend(req: RecommendationRequest):
+
+    embedding_text = input_json_to_embedding_text(req.input_json)
+
     return retrieve_relevant_documents(
-        query=req.query,
+        embedding_text=embedding_text,
         top_k=req.top_k
     )

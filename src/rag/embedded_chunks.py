@@ -112,7 +112,7 @@ def build_metadata(chunk: dict) -> dict:
 
 app = FastAPI(
     title="Chunk Embedding API",
-    version="1.0"
+    version="1.5"
 )
 
 # =========================

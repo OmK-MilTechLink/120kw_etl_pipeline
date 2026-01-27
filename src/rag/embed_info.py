@@ -91,7 +91,7 @@ def embed_all_scopes() -> int:
 # FASTAPI
 # =========================================================
 
-app = FastAPI(title="Scope Embedding API", version="1.0")
+app = FastAPI(title="Information Embedding API", version="2.0")
 
 @app.post("/scope/embed")
 def embed_scope_api():
